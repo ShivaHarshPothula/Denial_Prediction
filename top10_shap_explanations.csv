@@ -1,0 +1,31 @@
+claim_id,denial_prob,explanation
+CCLM-00285,0.8577368259429932,"Claim CCLM-00285 — denial risk 86% (High tier)
+  Raises risk:  prior_auth_gap = 1 (+0.86); missing_documentation_flag = 1 (+0.73); total_billed = 71,797.00 (+0.26)
+  Lowers risk:  days_to_submit = 13 (-0.14); payer_type = Commercial (-0.12)"
+CCLM-00062,0.8496126532554626,"Claim CCLM-00062 — denial risk 85% (High tier)
+  Raises risk:  prior_auth_gap = 1 (+0.88); eligibility_verified = 0 (+0.55); payment_ratio = 0.33 (+0.34)
+  Lowers risk:  missing_documentation_flag = 0 (-0.19); num_diagnoses = 3 (-0.06)"
+CCLM-00352,0.8440530896186829,"Claim CCLM-00352 — denial risk 84% (High tier)
+  Raises risk:  prior_auth_gap = 1 (+0.89); missing_documentation_flag = 1 (+0.65); payment_ratio = 0.31 (+0.34)
+  Lowers risk:  days_to_submit = 10 (-0.17); eligibility_verified = 1 (-0.09)"
+CCLM-00013,0.8324609994888306,"Claim CCLM-00013 — denial risk 83% (High tier)
+  Raises risk:  prior_auth_gap = 1 (+0.95); eligibility_verified = 0 (+0.43); payment_ratio = 0.32 (+0.35)
+  Lowers risk:  missing_documentation_flag = 0 (-0.18); referral_present = 1 (-0.12)"
+CCLM-00087,0.8315275311470032,"Claim CCLM-00087 — denial risk 83% (High tier)
+  Raises risk:  missing_documentation_flag = 1 (+0.63); days_to_submit = 40 (+0.52); eligibility_verified = 0 (+0.32)
+  Lowers risk:  payment_ratio = 0.58 (-0.23); prior_auth_gap = 0 (-0.11)"
+CCLM-00028,0.8275208473205566,"Claim CCLM-00028 — denial risk 83% (High tier)
+  Raises risk:  missing_documentation_flag = 1 (+0.68); eligibility_verified = 0 (+0.38); days_to_submit = 28 (+0.19)
+  Lowers risk:  prior_auth_gap = 0 (-0.11); num_procedures = 5 (-0.02)"
+CCLM-00280,0.8139504790306091,"Claim CCLM-00280 — denial risk 81% (High tier)
+  Raises risk:  missing_documentation_flag = 1 (+0.64); eligibility_verified = 0 (+0.45); num_procedures = 12 (+0.24)
+  Lowers risk:  prior_auth_gap = 0 (-0.13); num_diagnoses = 3 (-0.07)"
+CCLM-00416,0.8134123086929321,"Claim CCLM-00416 — denial risk 81% (High tier)
+  Raises risk:  prior_auth_gap = 1 (+0.91); eligibility_verified = 0 (+0.53); payer_type = BCBS (+0.09)
+  Lowers risk:  missing_documentation_flag = 0 (-0.18); days_to_submit = 15 (-0.11)"
+CCLM-00135,0.805309534072876,"Claim CCLM-00135 — denial risk 81% (High tier)
+  Raises risk:  missing_documentation_flag = 1 (+0.74); eligibility_verified = 0 (+0.29); days_to_submit = 39 (+0.27)
+  Lowers risk:  payer_type = Commercial (-0.19); payer_id = P011 (-0.13)"
+CCLM-00372,0.8038976788520813,"Claim CCLM-00372 — denial risk 80% (High tier)
+  Raises risk:  missing_documentation_flag = 1 (+0.74); prior_auth_gap = 1 (+0.66); payment_ratio = 0.32 (+0.32)
+  Lowers risk:  total_billed = 3,453.35 (-0.24); log_total_billed = 8.15 (-0.09)"
