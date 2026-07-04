@@ -1,11 +1,9 @@
-"""Part 1 entry point — train, threshold, explain, and persist artifacts.
-
-Run from the project root::
+"""Part 1: train, threshold, run SHAP, and save artifacts.
 
     python src/train.py
 
-Produces ``artifacts/model.joblib``, ``artifacts/shap_explainer.joblib``,
-``artifacts/metadata.joblib`` and ``top10_shap_explanations.csv``.
+Writes artifacts/model.joblib, artifacts/shap_explainer.joblib,
+artifacts/metadata.joblib, and top10_shap_explanations.csv.
 """
 from __future__ import annotations
 
@@ -16,7 +14,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 
-# Allow `python src/train.py` from the project root by putting the root on the path.
+# Let `python src/train.py` work from the project root.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src import config
@@ -35,7 +33,7 @@ def risk_tier(prob: float, threshold: float, median_cut: float) -> str:
 
 
 def main() -> None:
-    # ---- 1. Load + split --------------------------------------------------
+    # Load + split.
     hist = load_history()
     splits = split_history(hist)
     (X_train, y_train) = splits["train"]
@@ -47,27 +45,28 @@ def main() -> None:
         _, y = splits[name]
         print(f"  {name:5s} n={len(y):4d}  denial_rate={y.mean():.3f}")
 
-    # ---- 2. Tune XGBoost --------------------------------------------------
+    # Tune XGBoost.
     print("\nTuning XGBoost (early stop on 1 - recall@25%)...")
     model, params = tune_xgboost(X_train, y_train, X_val, y_val)
     print(f"  best iteration (trees): {params['best_iteration'] + 1}")
     print(f"  best params: {params}")
 
-    # ---- 3. Capacity-driven operating point (chosen on validation) --------
+    # Pick the operating point on validation: top-25% cutoff for High,
+    # median for Medium.
     val_scores = model.predict_proba(X_val)[:, 1]
     threshold = float(np.quantile(val_scores, 1 - config.REVIEW_CAPACITY))
     median_cut = float(np.quantile(val_scores, 0.50))
     print(f"\nOperating threshold (top-{config.REVIEW_CAPACITY:.0%} cutoff): {threshold:.3f}")
     print(f"Risk tiers: High >= {threshold:.3f} | Medium >= {median_cut:.3f} | Low below")
 
-    # ---- 4. Report on validation + locked test ----------------------------
+    # Report on validation and the locked test set.
     for label, X, y in (("validation", X_val, y_val), ("test", X_test, y_test)):
         rep = evaluate(model, X, y, threshold, label)
         print(f"\n=== {label} metrics ===")
         for k, v in rep.items():
             print(f"  {k:16s} {v}")
 
-    # ---- 5. SHAP explainer + top-10 plain-English driver breakdown --------
+    # SHAP explainer + driver breakdown for the top-10 current claims.
     clf = model.named_steps["clf"]
     prep = model.named_steps["prep"]
     feat_names = list(prep.get_feature_names_out())
@@ -98,12 +97,12 @@ def main() -> None:
         writer.writerows(explanations)
     print(f"Saved {len(explanations)} SHAP explanations -> {config.TOP_SHAP_CSV}")
 
-    # ---- 6. Persist artifacts --------------------------------------------
+    # Persist artifacts.
     config.ARTIFACTS_DIR.mkdir(exist_ok=True)
     joblib.dump(model, config.MODEL_PATH)
     try:
         joblib.dump(explainer, config.EXPLAINER_PATH)
-    except Exception as exc:  # noqa: BLE001 — scoring rebuilds it from the model
+    except Exception as exc:  # noqa: BLE001 — score.py rebuilds it from the model
         print(f"Could not pickle explainer (score.py will rebuild it): {exc}")
 
     joblib.dump({

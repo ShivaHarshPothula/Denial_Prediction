@@ -1,15 +1,15 @@
-"""Part 2 entry point — load artifacts, score current claims, explain, write CSV.
+"""Part 2: load artifacts, score current claims, explain, write CSV.
 
-Run from the project root (after ``python src/train.py``)::
+Run after `python src/train.py`:
 
     python src/score.py
 
-Writes ``predictions_current_claims.csv`` sorted highest -> lowest
-``denial_probability`` with columns:
-``claim_id, denial_probability, predicted_denial, risk_tier, top_risk_factors, explanation``.
+Writes predictions_current_claims.csv, sorted by denial_probability (desc),
+with columns: claim_id, denial_probability, predicted_denial, risk_tier,
+top_risk_factors, explanation.
 
-The top-10 highest-risk claims are explained by the LLM; the rest use the
-deterministic template. If no ``OPENAI_API_KEY`` is set, every row uses the template.
+The top-10 riskiest claims are explained by the LLM; the rest use the template.
+Without OPENAI_API_KEY, every row uses the template.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from pathlib import Path
 import joblib
 import shap
 
-# Allow `python src/score.py` from the project root by putting the root on the path.
+# Let `python src/score.py` work from the project root.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src import config, llm_explainer
@@ -41,7 +41,7 @@ def risk_tier(prob: float, threshold: float, median_cut: float) -> str:
 
 
 def load_artifacts():
-    """Load the model + metadata; rebuild the SHAP explainer if the pickle is missing."""
+    """Load model + metadata; rebuild the explainer if its pickle is missing."""
     if not config.MODEL_PATH.exists():
         raise FileNotFoundError(
             f"{config.MODEL_PATH} not found. Run `python src/train.py` first.")
@@ -61,7 +61,7 @@ def main() -> None:
     threshold, median_cut = meta["THRESHOLD"], meta["MEDIAN_CUT"]
     print(f"Loaded model + explainer.  THRESHOLD={threshold:.3f}  MEDIAN_CUT={median_cut:.3f}")
 
-    # ---- Score ------------------------------------------------------------
+    # Score.
     curr_e = engineer(load_current())
     curr_X = curr_e[config.FEATURES]
     probs = model.predict_proba(curr_X)[:, 1]
@@ -69,7 +69,7 @@ def main() -> None:
     print(f"Scored {len(curr_e)} claims.  flagged (High) = {int(preds.sum())} "
           f"({preds.mean():.0%})")
 
-    # ---- Per-claim SHAP drivers ------------------------------------------
+    # Per-claim SHAP drivers.
     ce = ClaimExplainer(model, explainer, meta["feat_names"]).fit_transform(curr_e)
 
     records = []
@@ -89,7 +89,7 @@ def main() -> None:
 
     records.sort(key=lambda r: r["denial_probability"], reverse=True)
 
-    # ---- Explanations: LLM for the top-10, template for the rest ----------
+    # LLM explanations for the top-10, template for the rest.
     use_llm = config.has_llm_key()
     print(f"Generating explanations (LLM={'on' if use_llm else 'off'}, model={config.LLM_MODEL})")
 
@@ -99,7 +99,7 @@ def main() -> None:
     for rec in records[config.TOP_N_EXPLANATIONS:]:
         rec["explanation"] = llm_explainer.template_explanation(rec)
 
-    # ---- Write CSV --------------------------------------------------------
+    # Write CSV.
     with open(config.PREDICTIONS_CSV, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=OUTPUT_COLS)
         writer.writeheader()

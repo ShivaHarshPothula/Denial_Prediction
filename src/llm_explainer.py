@@ -1,11 +1,9 @@
-"""Gen AI explanation step.
+"""LLM explanation step.
 
-Turns a scored claim (probability, risk tier, SHAP drivers) into a short,
-non-alarmist, plain-English explanation. The user message passes *only* the
-model's own outputs, so there is nothing for the model to hallucinate from.
-
-If no API key is configured, a deterministic template obeying the same content
-rules is used, so the pipeline always runs end-to-end.
+Turns a scored claim (probability, tier, SHAP drivers) into a short,
+plain-English note. The prompt only sees the model's own outputs, so there's
+nothing extra to hallucinate from. Falls back to a deterministic template when
+no API key is set, so the pipeline always runs end-to-end.
 """
 from __future__ import annotations
 
@@ -24,7 +22,7 @@ SYSTEM_PROMPT = (
 
 
 def build_user_prompt(record: dict) -> str:
-    """Compose the user message from a scored claim record and its SHAP drivers."""
+    """User message built from a scored claim and its drivers."""
     drivers = "\n".join(
         f"- {d['feature']} = {d['value']} ({d['direction']} denial risk)"
         for d in record["_drivers"]
@@ -39,7 +37,7 @@ def build_user_prompt(record: dict) -> str:
 
 
 def template_explanation(record: dict) -> str:
-    """Deterministic fallback (no API needed) obeying the same content rules."""
+    """Deterministic fallback with no API call."""
     d0 = record["_drivers"][0]
     return (
         f"This claim has an estimated {record['denial_probability']:.0%} chance of denial "
@@ -50,10 +48,10 @@ def template_explanation(record: dict) -> str:
 
 
 def llm_explanation(record: dict) -> str:
-    """Call the OpenAI chat API to write the explanation for one claim."""
+    """Write the explanation for one claim via the OpenAI chat API."""
     from openai import OpenAI
 
-    client = OpenAI()  # reads OPENAI_API_KEY from the environment
+    client = OpenAI()  # reads OPENAI_API_KEY from the env
     resp = client.chat.completions.create(
         model=config.LLM_MODEL,
         messages=[
@@ -67,11 +65,11 @@ def llm_explanation(record: dict) -> str:
 
 
 def explain(record: dict, use_llm: bool) -> str:
-    """Explain one claim, falling back to the template if the LLM is unavailable."""
+    """Explain one claim, falling back to the template if the LLM fails."""
     if not use_llm:
         return template_explanation(record)
     try:
         return llm_explanation(record)
-    except Exception as exc:  # noqa: BLE001 — degrade gracefully to the template
+    except Exception as exc:  # noqa: BLE001
         print(f"  LLM failed for {record['claim_id']} ({exc}); using template.")
         return template_explanation(record)

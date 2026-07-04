@@ -1,8 +1,8 @@
-"""Model definition, capacity-aware metrics, and XGBoost hyperparameter tuning.
+"""XGBoost tuning, evaluation, and capacity-aware metrics.
 
-The operating point everywhere is the review-team constraint: only the top 25%
-of claims by risk can be inspected, so the model is tuned and thresholded around
-``recall@25%`` rather than a generic 0.5 cutoff.
+Everything is built around the review-team constraint: only the top 25% of
+claims by risk get inspected, so we tune and threshold on recall@25% rather
+than a 0.5 cutoff.
 """
 from __future__ import annotations
 
@@ -18,8 +18,8 @@ from xgboost import XGBClassifier
 from . import config
 from .preprocessing import build_preprocessor
 
-# Randomised search space (regularisation-aware; the dataset is small).
-# ``n_estimators`` is an UPPER CAP — early stopping trims to the best iteration.
+# Search space leans on regularization since the dataset is small.
+# n_estimators is a cap; early stopping picks the actual number of trees.
 XGB_SPACE = {
     "clf__n_estimators":     [1000],
     "clf__max_depth":        [2, 3, 4, 5],
@@ -36,7 +36,7 @@ EARLY_STOP = 50
 
 
 def capture_at_top_k(y_true, scores, k: float = config.REVIEW_CAPACITY) -> dict:
-    """Recall and precision within the top-k fraction of claims by score."""
+    """Recall and precision within the top-k fraction by score."""
     y_true = np.asarray(y_true)
     n_review = max(1, int(np.ceil(len(scores) * k)))
     order = np.argsort(scores)[::-1]
@@ -51,10 +51,10 @@ def capture_at_top_k(y_true, scores, k: float = config.REVIEW_CAPACITY) -> dict:
 
 
 def recall_at_25_loss(y_true, y_pred) -> float:
-    """XGBoost custom eval-metric (minimised): ``1 - recall@25%``.
+    """Custom XGBoost eval metric: 1 - recall@25% (minimized).
 
-    Depends only on the *ranking* of scores, which is exactly the operating point
-    we care about, so early stopping optimises the deployed metric directly.
+    Only depends on score ranking, so early stopping optimizes the metric we
+    actually deploy on.
     """
     y_true = np.asarray(y_true)
     n_review = max(1, int(np.ceil(len(y_pred) * config.REVIEW_CAPACITY)))
@@ -78,16 +78,16 @@ def _make_xgb(scale_pos_weight: float, **params) -> XGBClassifier:
 
 def tune_xgboost(X_train, y_train, X_val, y_val,
                  n_iter: int = XGB_N_ITER) -> tuple[Pipeline, dict]:
-    """Randomised search over XGBoost, selecting on (recall@25%, PR-AUC) on val.
+    """Randomized search, selecting on (recall@25%, PR-AUC) on validation.
 
-    Returns a ready-to-use ``Pipeline`` (fitted preprocessor + fitted booster) and
-    the best hyperparameters (including the early-stopped best iteration).
+    Returns the fitted Pipeline (preprocessor + booster) and the best params,
+    including the early-stopped best iteration.
     """
     pos = y_train.mean()
     scale_pos_weight = (1.0 - pos) / pos
 
-    # Fit the preprocessor once (it is independent of the booster hyperparams) so
-    # each candidate can be handed an already-transformed validation eval_set.
+    # Preprocessor doesn't depend on the booster params, so fit it once and
+    # reuse the transformed eval_set across candidates.
     prep = build_preprocessor().fit(X_train, y_train)
     Xtr_t = prep.transform(X_train)
     Xval_t = prep.transform(X_val)
@@ -103,7 +103,7 @@ def tune_xgboost(X_train, y_train, X_val, y_val,
         params = {k.replace("clf__", ""): v for k, v in cand.items()}
         clf = _make_xgb(scale_pos_weight, **params)
         clf.fit(Xtr_t, y_train, eval_set=[(Xval_t, y_val)], verbose=False)
-        scores = clf.predict_proba(Xval_t)[:, 1]   # uses best_iteration
+        scores = clf.predict_proba(Xval_t)[:, 1]
         score = (capture_at_top_k(y_val, scores)["recall_at_25"],
                  average_precision_score(y_val, scores))
         if score > best_score:
@@ -115,7 +115,7 @@ def tune_xgboost(X_train, y_train, X_val, y_val,
 
 
 def evaluate(pipe: Pipeline, X, y, threshold: float, label: str) -> dict:
-    """Full operating-point report for one split."""
+    """Operating-point metrics for one split."""
     scores = pipe.predict_proba(X)[:, 1]
     cap = capture_at_top_k(y, scores)
     pred = (scores >= threshold).astype(int)

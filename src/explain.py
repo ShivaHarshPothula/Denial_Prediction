@@ -1,9 +1,8 @@
-"""SHAP-based per-claim risk drivers.
+"""Per-claim risk drivers from SHAP.
 
-SHAP runs on the fitted booster in the *transformed* space; one-hot contributions
-are summed back onto the original feature, so the reported drivers name real claim
-fields (e.g. ``prior_auth_gap``, ``missing_documentation_flag``) rather than
-opaque encoded columns.
+SHAP runs on the booster in the transformed space; one-hot contributions are
+summed back onto the original column so drivers name real claim fields
+(prior_auth_gap, missing_documentation_flag, ...) instead of encoded columns.
 """
 from __future__ import annotations
 
@@ -13,7 +12,7 @@ from sklearn.pipeline import Pipeline
 
 from . import config
 
-# Columns rendered as integers in the human-readable "field = value" string.
+# Rendered as integers in the "field = value" string.
 INT_COLS = set(config.BINARY_FLAGS) | {
     "prior_auth_gap", "referral_gap", "num_procedures", "num_diagnoses", "days_to_submit",
 }
@@ -24,16 +23,15 @@ def _dense(X):
 
 
 def build_explainer(clf) -> shap.TreeExplainer:
-    """Exact TreeExplainer on the fitted XGBoost booster."""
     return shap.TreeExplainer(clf)
 
 
 def _orig_feature_map(feat_names):
-    """Map each transformed column name back to its original feature."""
+    """Map each transformed column back to its original feature."""
     def to_orig(feat):
         if feat.startswith("cat__"):
             rest = feat[len("cat__"):]
-            for col in config.CATEGORICAL:          # longest known prefix wins
+            for col in config.CATEGORICAL:
                 if rest.startswith(col + "_"):
                     return col
             return rest
@@ -55,7 +53,7 @@ def _fmt_value(col, row):
 
 
 class ClaimExplainer:
-    """Computes SHAP values for every claim and exposes per-claim drivers."""
+    """SHAP values for every claim, plus per-claim driver lookups."""
 
     def __init__(self, pipe: Pipeline, explainer: shap.TreeExplainer, feat_names):
         self.pipe = pipe
@@ -68,24 +66,24 @@ class ClaimExplainer:
         self._engineered = None
 
     def fit_transform(self, engineered_df):
-        """Compute SHAP values for all rows of an engineered current-claims frame."""
+        """Compute SHAP values for every row of an engineered claims frame."""
         self._engineered = engineered_df.reset_index(drop=True)
         Xt = _dense(self.prep.transform(self._engineered[config.FEATURES]))
         sv = self.explainer.shap_values(Xt)
-        if isinstance(sv, list):                    # some shap versions return [neg, pos]
+        if isinstance(sv, list):                    # older shap returns [neg, pos]
             sv = sv[1]
         self._sv = sv
         return self
 
     def _aggregate(self, pos: int) -> dict[str, float]:
-        """Sum one-hot SHAP contributions back onto each original feature."""
+        """Sum one-hot contributions back onto each original feature."""
         agg: dict[str, float] = {}
         for feat, val in zip(self.orig_of, self._sv[pos]):
             agg[feat] = agg.get(feat, 0.0) + float(val)
         return agg
 
     def drivers(self, pos: int, k: int = 3) -> list[dict]:
-        """Top-k original-feature drivers for one claim, ranked by |SHAP|."""
+        """Top-k drivers for one claim, ranked by |SHAP|."""
         agg = self._aggregate(pos)
         ranked = sorted(agg.items(), key=lambda kv: abs(kv[1]), reverse=True)[:k]
         row = self._engineered.iloc[pos]
@@ -101,7 +99,7 @@ class ClaimExplainer:
 
     def text_explanation(self, pos: int, prob: float, tier: str,
                          n_up: int = 3, n_down: int = 2) -> str:
-        """Human-readable SHAP breakdown (top risk-raising / risk-lowering drivers)."""
+        """Readable breakdown of the top risk-raising and risk-lowering drivers."""
         agg = self._aggregate(pos)
         drivers = sorted(agg.items(), key=lambda kv: kv[1], reverse=True)
         up = [(f, s) for f, s in drivers if s > 0][:n_up]

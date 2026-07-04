@@ -1,8 +1,4 @@
-"""Data loading — thin wrappers around the two source CSVs.
-
-Kept deliberately small so the rest of the pipeline never reads from disk
-directly and file locations stay centralised in :mod:`config`.
-"""
+"""Readers for the two source CSVs."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -13,7 +9,7 @@ from . import config
 
 
 def load_history(path: Path | None = None) -> pd.DataFrame:
-    """Load the labelled training/validation/test claims (has ``split``, ``is_denied``)."""
+    """Labeled claims with the split and is_denied columns."""
     path = path or config.HISTORY_CSV
     if not path.exists():
         raise FileNotFoundError(f"History file not found: {path}")
@@ -21,7 +17,7 @@ def load_history(path: Path | None = None) -> pd.DataFrame:
 
 
 def load_current(path: Path | None = None) -> pd.DataFrame:
-    """Load the unlabelled claims to be scored."""
+    """Unlabeled claims to score."""
     path = path or config.CURRENT_CSV
     if not path.exists():
         raise FileNotFoundError(f"Current-claims file not found: {path}")

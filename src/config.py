@@ -11,13 +11,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Load variables from a local .env file (e.g. OPENAI_API_KEY) if present.
-# Real secrets live in .env (git-ignored); see .env.example for the template.
+# Pull OPENAI_API_KEY etc. from .env if present (.env is git-ignored).
 load_dotenv()
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
+# Paths are relative to the project root so this runs on any machine.
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = PROJECT_ROOT / "data"
 ARTIFACTS_DIR = PROJECT_ROOT / "artifacts"
@@ -32,20 +29,15 @@ METADATA_PATH = ARTIFACTS_DIR / "metadata.joblib"
 PREDICTIONS_CSV = PROJECT_ROOT / "predictions_current_claims.csv"
 TOP_SHAP_CSV = PROJECT_ROOT / "top10_shap_explanations.csv"
 
-# ---------------------------------------------------------------------------
-# Run constants
-# ---------------------------------------------------------------------------
 RANDOM_STATE = 42
 REVIEW_CAPACITY = 0.25          # review team can only inspect the top 25% by risk
-TOP_N_EXPLANATIONS = 10         # brief asks for LLM explanations on the top-10
+TOP_N_EXPLANATIONS = 10
 
-# ---------------------------------------------------------------------------
-# Feature schema (single source of truth for both training and scoring)
-# ---------------------------------------------------------------------------
+# Feature schema, used by both training and scoring.
 TARGET = "is_denied"
 ID_COL = "claim_id"
 
-# Leakage columns — never used as model inputs.
+# Never fed to the model.
 LEAKAGE_COLS = ["is_denied", "denial_reason", "split"]
 
 CATEGORICAL = ["payer_id", "payer_type", "visit_type"]
@@ -60,14 +52,11 @@ ENGINEERED = ["prior_auth_gap", "referral_gap", "payment_ratio", "log_total_bill
 
 FEATURES = CATEGORICAL + BINARY_FLAGS + NUMERIC + ENGINEERED
 
-# ---------------------------------------------------------------------------
-# LLM (Gen AI) settings — provider-agnostic env-driven config
-# ---------------------------------------------------------------------------
+# LLM settings for the explanation step (env-overridable).
 LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-4o-mini")
 LLM_TEMPERATURE = float(os.environ.get("LLM_TEMPERATURE", "0.2"))
 LLM_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "160"))
 
 
 def has_llm_key() -> bool:
-    """True when an OpenAI API key is available in the environment."""
     return bool(os.environ.get("OPENAI_API_KEY"))

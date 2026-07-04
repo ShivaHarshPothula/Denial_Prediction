@@ -48,8 +48,8 @@ Denial_Prediction/
 │   ├── model_training.ipynb
 │   └── scoring_and_explanations.ipynb
 ├── data/
-│   ├── claims_history.csv            # labelled claims (has `split`, `is_denied`)
-│   └── current_claims.csv            # unlabelled claims to score
+│   ├── claims_history.csv            # labeled claims (has `split`, `is_denied`)
+│   └── current_claims.csv            # unlabeled claims to score
 ├── artifacts/                        # written by train.py
 │   ├── model.joblib                  # fitted XGBoost pipeline (preprocessor + booster)
 │   ├── shap_explainer.joblib         # SHAP explainer for the booster
@@ -81,7 +81,7 @@ engineered features that encode the real denial patterns seen in the data:
 - The provided `split` column is used **as-is** (no custom resampling).
 - Preprocessing = one-hot for categoricals (`payer_id`, `payer_type`, `visit_type`),
   standard-scale for numerics, pass-through for binary flags.
-- **XGBoost** is hyperparameter-tuned via randomised search with early stopping on a
+- **XGBoost** is hyperparameter-tuned via randomized search with early stopping on a
   custom `recall@25%` metric. (The notebook also runs a FLAML AutoML pass as a
   sanity check.)
 
