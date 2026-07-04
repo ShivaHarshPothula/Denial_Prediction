@@ -8,7 +8,9 @@ env/
 
 # Environment / secrets
 .env
+.env.local
 *.key
+!.env.example
 
 # OS
 .DS_Store
